@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BART — Flujo Semanal de Pasajeros</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { 
+        box-sizing: border-box; 
+        margin: 0; 
+        padding: 0; 
+    }
+
+    :root {
+        --bg:       #ffffff;
+        --surface:  #f7f6f3;
+        --border:   #e3e1db;
+        --text-pri: #1a1a18;
+        --text-sec: #6b6b64;
+        --text-mute:#b5b4ac;
+        --c-wd:     #0072B2;
+    }
+
+    html, body {
+        background: var(--bg);
+        color: var(--text-pri);
+        font-family: 'DM Sans', sans-serif;
+        font-weight: 300;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        padding: 2.5rem 1.5rem 3rem;
+    }
+
+    .wrapper { 
+        width: 100%; 
+        max-width: 860px; 
+    }
+
+    .eyebrow {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--c-wd);
+        margin-bottom: 0.55rem;
+    }
+
+    h1 {
+        font-size: clamp(17px, 2.8vw, 24px);
+        font-weight: 400;
+        line-height: 1.25;
+        margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+        font-size: 13px;
+        color: var(--text-sec);
+        line-height: 1.6;
+        margin-bottom: 0.9rem;
+    }
+
+    .context {
+        font-size: 13px;
+        color: var(--text-sec);
+        line-height: 1.75;
+        border-left: 3px solid var(--border);
+        padding-left: 1rem;
+        margin-bottom: 1.4rem;
+    }
+
+    .context .stat {
+        display: block;
+        margin-top: 4px;
+        font-family: 'DM Mono', monospace;
+        font-size: 10.5px;
+        color: var(--text-mute);
+    }
+
+    .divider {
+        width: 100%;
+        height: 1px;
+        background: var(--border);
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-wrap {
+        position: relative;
+        width: 100%;
+        padding-bottom: min(100%, 680px);
+        height: 0;
+    }
+
+    #chart {
+        position: absolute;
+        inset: 0;
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    .overlay-img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: fill;
+        pointer-events: none;
+    }
+
+    .footer {
+        margin-top: 1.4rem;
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .source {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        color: var(--text-mute);
+        letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="eyebrow">Bay Area Rapid Transit</div>
+  <h1>Flujo semanal de pasajeros BART</h1>
+  <p class="subtitle">
+  Viajes totales por hora durante una <em>semana promedio</em> del año 2022 
+  </p>
+  <p class="context">
+  <strong>BART (Bay Area Rapid Transit)</strong> conecta 
+  <em>San Francisco</em> con el <em>East Bay</em> y el <em>sur de la Bahía</em>. 
+  Su uso refleja los <strong>patrones laborales de la industria tecnológica</strong>: 
+  <strong><u>el 82% de los viajes ocurre en días hábiles</u></strong>, 
+  muy por sobre el fin de semana 
+  <span class="stat"><em>(34,6&nbsp;M vs 7,4&nbsp;M)</em></span>.
+</p>
+
+  <div class="divider"></div>
+
+  <div class="chart-wrap">
+    <div id="chart"></div>
+    <img src="comentarios.svg" class="overlay-img" />
+  </div>
+
+  <div class="footer">
+    <span class="source">Fuente: BART Open Data</span>
+  </div>
+
+</div>
+
+<script>
+(async function () {
+  const CSV_PATH = "bart_week_full.csv";
+
+  async function loadCSV(path) {
+    const res = await fetch(path);
+    if (!res.ok) throw new Error(`No se pudo cargar el CSV: ${path}`);
+    const text = await res.text();
+    const lines = text.trim().split("\n");
+    const headers = lines[0].split(",").map((h) => h.trim());
+    return lines.slice(1).map((line) => {
+      const vals = line.split(",").map((v) => v.trim());
+      return Object.fromEntries(headers.map((h, i) => [h, Number(vals[i])]));
+    });
+  }
+
+  function buildGrid(rows) {
+    const DAYS = 7, HOURS = 24;
+    const grid = Array.from({ length: DAYS }, () => new Array(HOURS).fill(0));
+    rows.forEach((row) => {
+      const d = row["weekday"], h = row["Hour"], v = row["Trip Count"];
+      if (d >= 0 && d < DAYS && h >= 0 && h < HOURS) grid[d][h] = v;
+    });
+    return grid;
+  }
+
+  function drawPolar(containerId, grid) {
+    const DAYS = 7, HOURS = 24;
+    const total = DAYS * HOURS;
+    const DAY_NAMES = ["LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO", "DOMINGO"];
+    const RINGS = 5; // 200k, 400k, 600k, 800k, 1M
+
+    const container = document.getElementById(containerId);
+    if (!container) { console.error(`No se encontró #${containerId}`); return; }
+
+    const canvas = document.createElement("canvas");
+    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;";
+    container.appendChild(canvas);
+
+    const rData = [];
+    for (let d = 0; d < DAYS; d++)
+      for (let h = 0; h < HOURS; h++) rData.push(grid[d][h]);
+
+    const maxVal = 1000000;
+
+    function fmt(v) {
+      return (v / 1000).toFixed(0) + "k";
+    }
+
+    function render() {
+      const W = canvas.offsetWidth, H = canvas.offsetHeight;
+      if (!W || !H) return;
+
+      canvas.width  = W * devicePixelRatio;
+      canvas.height = H * devicePixelRatio;
+
+      const ctx = canvas.getContext("2d");
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+
+      const FONT_MONO  = "'DM Mono', monospace";
+      const FONT_SANS  = "'DM Sans', sans-serif";
+
+      const PAD = Math.min(W, H) * 0.02;
+      const cx  = W / 2;
+      const cy  = H / 2;
+      const r   = Math.min(W, H) / 2 - PAD;
+
+      // ── 1. RINGS con etiquetas ──
+      const tickAngle = -Math.PI / 2;
+
+      for (let i = 1; i <= RINGS; i++) {
+        const rr = r * (i / RINGS);
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+        ctx.strokeStyle = i === RINGS ? "rgba(0,0,0,0.13)" : "rgba(0,0,0,0.06)";
+        ctx.lineWidth = i === RINGS ? 1 : 0.7;
+        ctx.stroke();
+
+        const tickLen = 6;
+        const tx = cx + Math.cos(tickAngle) * rr;
+        const ty = cy + Math.sin(tickAngle) * rr;
+        const perpX = Math.cos(tickAngle + Math.PI / 2);
+        const perpY = Math.sin(tickAngle + Math.PI / 2);
+
+        ctx.beginPath();
+        ctx.moveTo(tx - perpX * tickLen / 2, ty - perpY * tickLen / 2);
+        ctx.lineTo(tx + perpX * tickLen / 2, ty + perpY * tickLen / 2);
+        ctx.strokeStyle = "rgba(0,0,0,0.35)";
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        const labelDist = rr - (r / RINGS) * - 0.03;
+        const lx = cx + Math.cos(tickAngle) * labelDist;
+        const ly = cy + Math.sin(tickAngle) * labelDist;
+
+        ctx.save();
+        ctx.translate(lx, ly);
+        ctx.rotate(tickAngle + Math.PI / 2);
+        ctx.font = `400 8px ${FONT_MONO}`;
+        ctx.fillStyle = "rgba(0,0,0,0.32)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(fmt(maxVal * i / RINGS), 0, -7);
+        ctx.restore();
+      }
+
+      // ── 2. LÍNEAS RADIALES (separadores de día) ──
+      for (let d = 0; d < DAYS; d++) {
+        const angle = (d / DAYS) * Math.PI * 2 - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+        ctx.strokeStyle = "rgba(0,0,0,0.15)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      // ── 3. ETIQUETAS DE DÍA (centro del sector) ──
+      for (let d = 0; d < DAYS; d++) {
+        const midAngle = ((d + 0.5) / DAYS) * Math.PI * 2 - Math.PI / 2;
+        const labelDist = r * 1.025;
+        const lx = cx + Math.cos(midAngle) * labelDist;
+        const ly = cy + Math.sin(midAngle) * labelDist;
+
+        ctx.save();
+        ctx.translate(lx, ly);
+        ctx.rotate(midAngle + Math.PI / 2);
+        ctx.font = `500 11px ${FONT_MONO}`;
+        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(DAY_NAMES[d], 0, 0);
+        ctx.restore();
+      }
+
+      // ── 4. ETIQUETAS DE HORA (cada 2h, en el borde exterior) ──
+      for (let d = 0; d < DAYS; d++) {
+        for (let h = 0; h < HOURS; h += 2) {
+          // Saltar h=0 para no chocar con la línea radial del día
+          if (h === 0) continue;
+
+          const idx = d * HOURS + h;
+          const angle = (idx / total) * Math.PI * 2 - Math.PI / 2;
+          const labelDist = r * 0.97;
+          const lx = cx + Math.cos(angle) * labelDist;
+          const ly = cy + Math.sin(angle) * labelDist;
+
+          ctx.save();
+          ctx.translate(lx, ly);
+          ctx.rotate(angle + Math.PI / 2);
+          ctx.font = `400 7px ${FONT_MONO}`;
+          ctx.fillStyle = "rgba(0,0,0,0.22)";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const isPM = h >= 12;
+          const h12  = h % 12 === 0 ? 12 : h % 12;
+          ctx.fillText(`${h12}${isPM ? "pm" : "am"}`, 0, 0);
+          ctx.restore();
+        }
+      }
+
+      // ── 5. GRÁFICO ──
+      ctx.beginPath();
+      for (let i = 0; i < total; i++) {
+        const angle = (i / total) * Math.PI * 2 - Math.PI / 2;
+        const rr    = r * Math.min(rData[i] / maxVal, 1);
+        const x     = cx + Math.cos(angle) * rr;
+        const y     = cy + Math.sin(angle) * rr;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+
+      ctx.fillStyle   = "rgba(0, 114, 178, 0.10)";
+      ctx.fill();
+      ctx.strokeStyle = "#0072B2";
+      ctx.lineWidth   = 1.5;
+      ctx.lineJoin    = "round";
+      ctx.stroke();
+    }
+
+    render();
+    window.addEventListener("resize", render);
+  }
+
+  try {
+    const rows = await loadCSV(CSV_PATH);
+    const grid = buildGrid(rows);
+    drawPolar("chart", grid);
+  } catch (err) {
+    console.error("Error al cargar el gráfico polar:", err);
+    const el = document.getElementById("chart");
+    if (el) el.innerHTML =
+      '<p style="color:#6b6b64;font-family:DM Mono,monospace;font-size:12px;padding:3rem;text-align:center;">No se pudo cargar bart_week_full.csv</p>';
+  }
+})();
+</script>
+</body>
+</html>
