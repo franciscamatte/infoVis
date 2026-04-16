@@ -35,7 +35,7 @@
         flex-direction: column;
         align-items: center;
         min-height: 100vh;
-        padding: 2.5rem 1.5rem 3rem;
+        padding: 1rem 1.5rem 3rem;
     }
 
     .wrapper { 
@@ -258,7 +258,7 @@
         ctx.translate(lx, ly);
         ctx.rotate(tickAngle + Math.PI / 2);
         ctx.font = `400 8px ${FONT_MONO}`;
-        ctx.fillStyle = "rgba(0,0,0,0.32)";
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(fmt(maxVal * i / RINGS), 0, -7);
@@ -287,7 +287,7 @@
         ctx.translate(lx, ly);
         ctx.rotate(midAngle + Math.PI / 2);
         ctx.font = `500 11px ${FONT_MONO}`;
-        ctx.fillStyle = "rgba(0,0,0,0.55)";
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(DAY_NAMES[d], 0, 0);
@@ -310,7 +310,7 @@
           ctx.translate(lx, ly);
           ctx.rotate(angle + Math.PI / 2);
           ctx.font = `400 7px ${FONT_MONO}`;
-          ctx.fillStyle = "rgba(0,0,0,0.22)";
+          ctx.fillStyle = "rgba(0,0,0,0.32)";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           const isPM = h >= 12;
