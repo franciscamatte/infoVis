@@ -75,14 +75,6 @@
         margin-bottom: 1.4rem;
     }
 
-    .context .stat {
-        display: block;
-        margin-top: 4px;
-        font-family: 'DM Mono', monospace;
-        font-size: 10.5px;
-        color: var(--text-mute);
-    }
-
     .divider {
         width: 100%;
         height: 1px;
@@ -90,11 +82,68 @@
         margin-bottom: 1.5rem;
     }
 
+    /* ── Controls ── */
+    .controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 1.2rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-play {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 5px 13px;
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-sec);
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-play:hover { border-color: var(--c-wd); color: var(--c-wd); }
+    .btn-play.playing { border-color: var(--c-wd); color: var(--c-wd); }
+
+    .btn-play svg { flex-shrink: 0; }
+
+    .speed-label {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        color: var(--text-mute);
+        letter-spacing: 0.08em;
+    }
+    .speed-select {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 4px 8px;
+        color: var(--text-sec);
+        cursor: pointer;
+    }
+
+    .hint {
+        font-family: 'DM Mono', monospace;
+        font-size: 9.5px;
+        color: var(--text-mute);
+        letter-spacing: 0.06em;
+        margin-left: auto;
+    }
+
+    /* ── Chart wrap ── */
     .chart-wrap {
         position: relative;
         width: 100%;
         padding-bottom: min(100%, 680px);
         height: 0;
+        cursor: crosshair;
     }
 
     #chart {
@@ -103,6 +152,88 @@
         width: 100% !important;
         height: 100% !important;
     }
+
+    /* ── Tooltip ── */
+    #tooltip {
+        position: fixed;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.12s;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 9px 13px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        z-index: 100;
+    }
+    #tooltip.visible { opacity: 1; }
+    #tooltip .tt-day {
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: var(--c-wd);
+        margin-bottom: 2px;
+    }
+    #tooltip .tt-hour {
+        font-size: 12px;
+        font-weight: 400;
+        color: var(--text-pri);
+        margin-bottom: 4px;
+    }
+    #tooltip .tt-val {
+        font-family: 'DM Mono', monospace;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-pri);
+    }
+    #tooltip .tt-bar {
+        margin-top: 5px;
+        height: 3px;
+        border-radius: 2px;
+        background: var(--c-wd);
+        opacity: 0.5;
+        transition: width 0.1s;
+    }
+    #tooltip .tt-sub {
+        font-family: 'DM Mono', monospace;
+        font-size: 8.5px;
+        color: var(--text-mute);
+        margin-top: 3px;
+    }
+
+    /* ── Playhead indicator (small glow dot on chart) ── */
+    #playhead {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--c-wd);
+        box-shadow: 0 0 0 3px rgba(0,114,178,0.25);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+    #playhead.visible { opacity: 1; }
+
+    /* ── Sound indicator ── */
+    .sound-indicator {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 14px;
+    }
+    .sound-indicator span {
+        display: block;
+        width: 3px;
+        background: var(--c-wd);
+        border-radius: 1px;
+        opacity: 0.3;
+        transform-origin: bottom;
+        transition: height 0.08s, opacity 0.08s;
+    }
+    .sound-indicator.active span { opacity: 0.8; }
 
     .overlay-img {
         position: absolute;
@@ -119,6 +250,7 @@
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 6px;
+        align-items: center;
     }
 
     .source {
@@ -126,6 +258,16 @@
         font-size: 10px;
         color: var(--text-mute);
         letter-spacing: 0.05em;
+    }
+
+    .legend-sound {
+        font-family: 'DM Mono', monospace;
+        font-size: 9px;
+        color: var(--text-mute);
+        letter-spacing: 0.05em;
+        display: flex;
+        align-items: center;
+        gap: 5px;
     }
   </style>
 </head>
@@ -135,223 +277,708 @@
   <div class="eyebrow">Bay Area Rapid Transit</div>
   <h1>Flujo semanal de pasajeros BART</h1>
   <p class="subtitle">
-  Viajes totales por hora durante una <em>semana promedio</em> del año 2022 
+    Viajes totales por hora durante una <em>semana promedio</em> del año 2022
   </p>
   <p class="context">
-  <strong>BART (Bay Area Rapid Transit)</strong> conecta 
-  <em>San Francisco</em> con el <em>East Bay</em> y el <em>sur de la Bahía</em>. 
-  Su uso refleja los <strong>patrones laborales de la industria tecnológica</strong>: 
-  <strong><u>el 82% de los viajes ocurre en días hábiles</u></strong>, 
-  muy por sobre el fin de semana <em>(34,6&nbsp;M vs 7,4&nbsp;M)</em>.
-</p>
+    <strong>BART (Bay Area Rapid Transit)</strong> conecta 
+    <em>San Francisco</em> con el <em>East Bay</em> y el <em>sur de la Bahía</em>. 
+    Su uso refleja los <strong>patrones laborales de la industria tecnológica</strong>: 
+    <strong><u>el 82% de los viajes ocurre en días hábiles</u></strong>, 
+    muy por sobre el fin de semana <em>(34,6&nbsp;M vs 7,4&nbsp;M)</em>.
+  </p>
 
   <div class="divider"></div>
 
-  <div class="chart-wrap">
+  <!-- Controls -->
+  <div class="controls">
+    <button class="btn-play" id="btnPlay" onclick="togglePlay()">
+      <svg id="iconPlay" width="10" height="11" viewBox="0 0 10 11" fill="none">
+        <path d="M2 1.5L8.5 5.5L2 9.5V1.5Z" fill="currentColor"/>
+      </svg>
+      <svg id="iconStop" width="10" height="11" viewBox="0 0 10 11" fill="none" style="display:none">
+        <rect x="2" y="1.5" width="2.5" height="8" rx="1" fill="currentColor"/>
+        <rect x="5.5" y="1.5" width="2.5" height="8" rx="1" fill="currentColor"/>
+      </svg>
+      <span id="btnLabel">Reproducir semana</span>
+    </button>
+
+    <span class="speed-label">Velocidad:</span>
+    <select class="speed-select" id="speedSelect" onchange="updateSpeed()">
+      <option value="1250">0.25×</option>
+      <option value="1000">0.5×</option>
+      <option value="750" selected>1×</option>
+      <option value="500">2×</option>
+    </select>
+
+    <div class="sound-indicator" id="soundIndicator">
+      <span id="bar1" style="height:4px"></span>
+      <span id="bar2" style="height:4px"></span>
+      <span id="bar3" style="height:4px"></span>
+      <span id="bar4" style="height:4px"></span>
+      <span id="bar5" style="height:4px"></span>
+    </div>
+
+    <span class="hint">Hover o click en el gráfico para escuchar</span>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-wrap" id="chartWrap">
     <div id="chart"></div>
+    <div id="playhead"></div>
     <img src="comentarios.svg" class="overlay-img" />
   </div>
 
   <div class="footer">
     <span class="source">Fuente: BART Open Data</span>
+    <span class="legend-sound">
+      Intensidad del sonido proporcional al flujo de pasajeros
+    </span>
   </div>
 
 </div>
 
+<!-- Tooltip -->
+<div id="tooltip">
+  <div class="tt-day" id="tt-day"></div>
+  <div class="tt-hour" id="tt-hour"></div>
+  <div class="tt-val" id="tt-val"></div>
+  <div class="tt-bar" id="tt-bar" style="width:0px"></div>
+  <div class="tt-sub" id="tt-sub"></div>
+</div>
+
 <script>
-(async function () {
-  const CSV_PATH = "bart_week_full.csv";
+// ─────────────────────────────────────────────
+//  GLOBALS
+// ─────────────────────────────────────────────
+const DAYS  = 7;
+const HOURS = 24;
+const TOTAL = DAYS * HOURS;
+const MAX_VAL = 1000000;
+const DAY_NAMES = ["LUNES","MARTES","MIÉRCOLES","JUEVES","VIERNES","SÁBADO","DOMINGO"];
+const DAY_NAMES_FULL = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
 
-  async function loadCSV(path) {
-    const res = await fetch(path);
-    if (!res.ok) throw new Error(`No se pudo cargar el CSV: ${path}`);
-    const text = await res.text();
-    const lines = text.trim().split("\n");
-    const headers = lines[0].split(",").map((h) => h.trim());
-    return lines.slice(1).map((line) => {
-      const vals = line.split(",").map((v) => v.trim());
-      return Object.fromEntries(headers.map((h, i) => [h, Number(vals[i])]));
-    });
+let rData = new Array(TOTAL).fill(0);
+let gridData = Array.from({length:DAYS}, () => new Array(HOURS).fill(0));
+
+// Canvas state
+let canvas, ctx, W, H, cx, cy, r;
+const PAD_RATIO = 0.02;
+const RINGS = 5;
+const FONT_MONO = "'DM Mono', monospace";
+
+// Interaction state
+let hoveredIdx = -1;
+let clickedIdx = -1;
+let isPlaying  = false;
+let playIdx    = 0;
+let playTimer  = null;
+let stepMs     = 750;
+
+// Audio
+let audioCtx = null;
+
+// ─────────────────────────────────────────────
+//  CSV LOAD
+// ─────────────────────────────────────────────
+async function loadCSV(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`No se pudo cargar: ${path}`);
+  const text = await res.text();
+  const lines = text.trim().split("\n");
+  const headers = lines[0].split(",").map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = line.split(",").map(v => v.trim());
+    return Object.fromEntries(headers.map((h,i) => [h, Number(vals[i])]));
+  });
+}
+
+function buildGrid(rows) {
+  rows.forEach(row => {
+    const d = row["weekday"], h = row["Hour"], v = row["Trip Count"];
+    if (d >= 0 && d < DAYS && h >= 0 && h < HOURS) gridData[d][h] = v;
+  });
+  for (let d = 0; d < DAYS; d++)
+    for (let h = 0; h < HOURS; h++)
+      rData[d * HOURS + h] = gridData[d][h];
+}
+
+// ─────────────────────────────────────────────
+//  AUDIO ENGINE — 5-track crossfade
+// ─────────────────────────────────────────────
+
+// Track definitions: file, ratio range [min, max], peak gain
+const TRACKS = [
+  { file: 'empty.mp3',        min: 0.00, max: 0.05, gain: 0.55 },
+  { file: 'light.mp3',        min: 0.05, max: 0.25, gain: 0.60 },
+  { file: 'medium.mp3',       min: 0.25, max: 0.50, gain: 0.65 },
+  { file: 'heavy.mp3',        min: 0.50, max: 0.75, gain: 0.70 },
+  { file: 'really_heavy.mp3', min: 0.75, max: 1.00, gain: 0.75 },
+];
+
+// Runtime state per track
+const trackState = TRACKS.map(() => ({
+  buffer: null,   // decoded AudioBuffer
+  source: null,   // BufferSourceNode (looping)
+  gain:   null,   // GainNode
+  loaded: false,
+  loading: false,
+}));
+
+let masterGain = null;  // master output gain
+
+function ensureAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 1;
+    masterGain.connect(audioCtx.destination);
   }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
 
-  function buildGrid(rows) {
-    const DAYS = 7, HOURS = 24;
-    const grid = Array.from({ length: DAYS }, () => new Array(HOURS).fill(0));
-    rows.forEach((row) => {
-      const d = row["weekday"], h = row["Hour"], v = row["Trip Count"];
-      if (d >= 0 && d < DAYS && h >= 0 && h < HOURS) grid[d][h] = v;
-    });
-    return grid;
+// Load a single track buffer (lazy, called on first interaction)
+async function loadTrack(i) {
+  if (trackState[i].loaded || trackState[i].loading) return;
+  trackState[i].loading = true;
+  try {
+    const res = await fetch(TRACKS[i].file);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const ab  = await res.arrayBuffer();
+    trackState[i].buffer = await audioCtx.decodeAudioData(ab);
+    trackState[i].loaded = true;
+  } catch(e) {
+    console.warn(`No se pudo cargar ${TRACKS[i].file}:`, e.message);
   }
+  trackState[i].loading = false;
+}
 
-  function drawPolar(containerId, grid) {
-    const DAYS = 7, HOURS = 24;
-    const total = DAYS * HOURS;
-    const DAY_NAMES = ["LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO", "DOMINGO"];
-    const RINGS = 5; // 200k, 400k, 600k, 800k, 1M
+// Start a track looping at gain 0 (ready to crossfade in)
+function startTrack(i) {
+  const st = trackState[i];
+  if (!st.loaded || !st.buffer) return;
+  if (st.source) return; // already running
 
-    const container = document.getElementById(containerId);
-    if (!container) { console.error(`No se encontró #${containerId}`); return; }
+  st.gain   = audioCtx.createGain();
+  st.gain.gain.value = 0;
+  st.gain.connect(masterGain);
 
-    const canvas = document.createElement("canvas");
-    canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;";
-    container.appendChild(canvas);
+  st.source = audioCtx.createBufferSource();
+  st.source.buffer = st.buffer;
+  st.source.loop   = true;
+  st.source.connect(st.gain);
+  st.source.start();
+}
 
-    const rData = [];
-    for (let d = 0; d < DAYS; d++)
-      for (let h = 0; h < HOURS; h++) rData.push(grid[d][h]);
+// Stop a track with a short fade
+function stopTrack(i, fadeSec = 0.35) {
+  const st = trackState[i];
+  if (!st.source) return;
+  const t = audioCtx.currentTime;
+  st.gain.gain.setValueAtTime(st.gain.gain.value, t);
+  st.gain.gain.linearRampToValueAtTime(0, t + fadeSec);
+  const src = st.source;
+  st.source = null;
+  setTimeout(() => { try { src.stop(); } catch(e){} }, (fadeSec + 0.1) * 1000);
+}
 
-    const maxVal = 1000000;
+// Pick which track index a ratio belongs to
+function trackForRatio(ratio) {
+  if (ratio < 0.005) return -1; // silence
+  for (let i = TRACKS.length - 1; i >= 0; i--) {
+    if (ratio >= TRACKS[i].min) return i;
+  }
+  return 0;
+}
 
-    function fmt(v) {
-      return (v / 1000).toFixed(0) + "k";
+let activeTrackIdx = -1;
+
+async function playCrowdSound(tripCount) {
+  ensureAudioCtx();
+  const ratio    = Math.min(tripCount / MAX_VAL, 1);
+  const wantIdx  = trackForRatio(ratio);
+
+  // Preload all tracks in background (lazy)
+  TRACKS.forEach((_, i) => loadTrack(i));
+
+  if (wantIdx === activeTrackIdx) {
+    // Same track — just update gain within the track's range
+    if (wantIdx >= 0 && trackState[wantIdx].gain) {
+      const { min, max, gain: peakGain } = TRACKS[wantIdx];
+      const local = (ratio - min) / (max - min || 1);
+      const targetGain = peakGain * (0.6 + local * 0.4);
+      const t = audioCtx.currentTime;
+      trackState[wantIdx].gain.gain.setValueAtTime(trackState[wantIdx].gain.gain.value, t);
+      trackState[wantIdx].gain.gain.linearRampToValueAtTime(targetGain, t + 0.15);
     }
-
-    function render() {
-      const W = canvas.offsetWidth, H = canvas.offsetHeight;
-      if (!W || !H) return;
-
-      canvas.width  = W * devicePixelRatio;
-      canvas.height = H * devicePixelRatio;
-
-      const ctx = canvas.getContext("2d");
-      ctx.scale(devicePixelRatio, devicePixelRatio);
-
-      const FONT_MONO  = "'DM Mono', monospace";
-      const FONT_SANS  = "'DM Sans', sans-serif";
-
-      const PAD = Math.min(W, H) * 0.02;
-      const cx  = W / 2;
-      const cy  = H / 2;
-      const r   = Math.min(W, H) / 2 - PAD;
-
-      // ── 1. RINGS con etiquetas ──
-      const tickAngle = -Math.PI / 2;
-
-      for (let i = 1; i <= RINGS; i++) {
-        const rr = r * (i / RINGS);
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, rr, 0, Math.PI * 2);
-        ctx.strokeStyle = i === RINGS ? "rgba(0,0,0,0.13)" : "rgba(0,0,0,0.06)";
-        ctx.lineWidth = i === RINGS ? 1 : 0.7;
-        ctx.stroke();
-
-        const tickLen = 6;
-        const tx = cx + Math.cos(tickAngle) * rr;
-        const ty = cy + Math.sin(tickAngle) * rr;
-        const perpX = Math.cos(tickAngle + Math.PI / 2);
-        const perpY = Math.sin(tickAngle + Math.PI / 2);
-
-        ctx.beginPath();
-        ctx.moveTo(tx - perpX * tickLen / 2, ty - perpY * tickLen / 2);
-        ctx.lineTo(tx + perpX * tickLen / 2, ty + perpY * tickLen / 2);
-        ctx.strokeStyle = "rgba(0,0,0,0.35)";
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
-
-        const labelDist = rr - (r / RINGS) * - 0.03;
-        const lx = cx + Math.cos(tickAngle) * labelDist;
-        const ly = cy + Math.sin(tickAngle) * labelDist;
-
-        ctx.save();
-        ctx.translate(lx, ly);
-        ctx.rotate(tickAngle + Math.PI / 2);
-        ctx.font = `400 8px ${FONT_MONO}`;
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(fmt(maxVal * i / RINGS), 0, -7);
-        ctx.restore();
-      }
-
-      // ── 2. LÍNEAS RADIALES (separadores de día) ──
-      for (let d = 0; d < DAYS; d++) {
-        const angle = (d / DAYS) * Math.PI * 2 - Math.PI / 2;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
-        ctx.strokeStyle = "rgba(0,0,0,0.15)";
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-
-      // ── 3. ETIQUETAS DE DÍA (centro del sector) ──
-      for (let d = 0; d < DAYS; d++) {
-        const midAngle = ((d + 0.5) / DAYS) * Math.PI * 2 - Math.PI / 2;
-        const labelDist = r * 1.025;
-        const lx = cx + Math.cos(midAngle) * labelDist;
-        const ly = cy + Math.sin(midAngle) * labelDist;
-
-        ctx.save();
-        ctx.translate(lx, ly);
-        ctx.rotate(midAngle + Math.PI / 2);
-        ctx.font = `500 11px ${FONT_MONO}`;
-        ctx.fillStyle = "rgba(0,0,0,0.7)";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(DAY_NAMES[d], 0, 0);
-        ctx.restore();
-      }
-
-      // ── 4. ETIQUETAS DE HORA (cada 2h, en el borde exterior) ──
-      for (let d = 0; d < DAYS; d++) {
-        for (let h = 0; h < HOURS; h += 2) {
-          // Saltar h=0 para no chocar con la línea radial del día
-          if (h === 0) continue;
-
-          const idx = d * HOURS + h;
-          const angle = (idx / total) * Math.PI * 2 - Math.PI / 2;
-          const labelDist = r * 0.97;
-          const lx = cx + Math.cos(angle) * labelDist;
-          const ly = cy + Math.sin(angle) * labelDist;
-
-          ctx.save();
-          ctx.translate(lx, ly);
-          ctx.rotate(angle + Math.PI / 2);
-          ctx.font = `400 7px ${FONT_MONO}`;
-          ctx.fillStyle = "rgba(0,0,0,0.32)";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          const isPM = h >= 12;
-          const h12  = h % 12 === 0 ? 12 : h % 12;
-          ctx.fillText(`${h12}${isPM ? "pm" : "am"}`, 0, 0);
-          ctx.restore();
-        }
-      }
-
-      // ── 5. GRÁFICO ──
-      ctx.beginPath();
-      for (let i = 0; i < total; i++) {
-        const angle = (i / total) * Math.PI * 2 - Math.PI / 2;
-        const rr    = r * Math.min(rData[i] / maxVal, 1);
-        const x     = cx + Math.cos(angle) * rr;
-        const y     = cy + Math.sin(angle) * rr;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-
-      ctx.fillStyle   = "rgba(0, 114, 178, 0.10)";
-      ctx.fill();
-      ctx.strokeStyle = "#0072B2";
-      ctx.lineWidth   = 1.5;
-      ctx.lineJoin    = "round";
-      ctx.stroke();
-    }
-
-    render();
-    window.addEventListener("resize", render);
+    updateSoundBars(ratio);
+    return;
   }
+
+  // Crossfade: fade out old, fade in new
+  if (activeTrackIdx >= 0) stopTrack(activeTrackIdx, 0.4);
+  activeTrackIdx = wantIdx;
+
+  if (wantIdx < 0) { updateSoundBars(0); return; }
+
+  // Wait for buffer if still loading
+  if (!trackState[wantIdx].loaded) {
+    await loadTrack(wantIdx);
+    if (!trackState[wantIdx].loaded) { updateSoundBars(0); return; }
+  }
+
+  startTrack(wantIdx);
+
+  const { min, max, gain: peakGain } = TRACKS[wantIdx];
+  const local = (ratio - min) / (max - min || 1);
+  const targetGain = peakGain * (0.6 + local * 0.4);
+  const t = audioCtx.currentTime;
+  trackState[wantIdx].gain.gain.setValueAtTime(0, t);
+  trackState[wantIdx].gain.gain.linearRampToValueAtTime(targetGain, t + 0.25);
+
+  updateSoundBars(ratio);
+}
+
+function stopCrowdSound(fade = 0.35) {
+  if (activeTrackIdx >= 0) {
+    stopTrack(activeTrackIdx, fade);
+    activeTrackIdx = -1;
+  }
+  updateSoundBars(0);
+}
+
+function updateSoundBars(ratio) {
+  const ind = document.getElementById('soundIndicator');
+  const bars = [1,2,3,4,5].map(i => document.getElementById('bar'+i));
+  if (ratio < 0.01) {
+    ind.classList.remove('active');
+    bars.forEach(b => { if(b) b.style.height = '3px'; });
+    return;
+  }
+  ind.classList.add('active');
+  const heights = [
+    2 + ratio * 10,
+    2 + ratio * 12,
+    2 + ratio * 14,
+    2 + ratio * 10,
+    2 + ratio * 7,
+  ];
+  bars.forEach((b,i) => { if(b) b.style.height = heights[i] + 'px'; });
+}
+
+// ─────────────────────────────────────────────
+//  GEOMETRY HELPERS
+// ─────────────────────────────────────────────
+function getGeometry() {
+  W  = canvas.offsetWidth;
+  H  = canvas.offsetHeight;
+  cx = W / 2;
+  cy = H / 2;
+  const PAD = Math.min(W, H) * PAD_RATIO;
+  r  = Math.min(W, H) / 2 - PAD;
+}
+
+// Convert polar index → canvas XY (at the graph's plotted radius)
+function idxToXY(idx) {
+  const angle = (idx / TOTAL) * Math.PI * 2 - Math.PI / 2;
+  const rr    = r * Math.min(rData[idx] / MAX_VAL, 1);
+  return {
+    x: cx + Math.cos(angle) * rr,
+    y: cy + Math.sin(angle) * rr,
+    angle
+  };
+}
+
+// Given canvas XY, find nearest data index (by angle)
+function xyToIdx(x, y) {
+  const dx = x - cx, dy = y - cy;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist < 5) return -1;   // too close to center
+  if (dist > r * 1.05) return -1;  // outside chart
+
+  let angle = Math.atan2(dy, dx) + Math.PI / 2;
+  if (angle < 0) angle += Math.PI * 2;
+  const frac = angle / (Math.PI * 2);
+  return Math.round(frac * TOTAL) % TOTAL;
+}
+
+function idxToDayHour(idx) {
+  return { day: Math.floor(idx / HOURS), hour: idx % HOURS };
+}
+
+function formatHour(h) {
+  const isPM = h >= 12;
+  const h12  = h % 12 === 0 ? 12 : h % 12;
+  const next = (h + 1) % 24;
+  const np   = next >= 12;
+  const n12  = next % 12 === 0 ? 12 : next % 12;
+  return `${h12}:00 ${isPM?'PM':'AM'} – ${n12}:00 ${np?'PM':'AM'}`;
+}
+
+function formatCount(v) {
+  if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,'') + 'k viajes';
+  return v + ' viajes';
+}
+
+// ─────────────────────────────────────────────
+//  DRAW
+// ─────────────────────────────────────────────
+function render(highlightIdx = -1) {
+  if (!canvas || !ctx) return;
+  getGeometry();
+
+  canvas.width  = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+
+  // ── 1. RINGS
+  for (let i = 1; i <= RINGS; i++) {
+    const rr = r * (i / RINGS);
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+    ctx.strokeStyle = i === RINGS ? "rgba(0,0,0,0.13)" : "rgba(0,0,0,0.06)";
+    ctx.lineWidth = i === RINGS ? 1 : 0.7;
+    ctx.stroke();
+
+    const tickAngle = -Math.PI / 2;
+    const tickLen = 6;
+    const tx = cx + Math.cos(tickAngle) * rr;
+    const ty = cy + Math.sin(tickAngle) * rr;
+    const perpX = Math.cos(tickAngle + Math.PI / 2);
+    const perpY = Math.sin(tickAngle + Math.PI / 2);
+    ctx.beginPath();
+    ctx.moveTo(tx - perpX*tickLen/2, ty - perpY*tickLen/2);
+    ctx.lineTo(tx + perpX*tickLen/2, ty + perpY*tickLen/2);
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    const lx = cx + Math.cos(tickAngle) * rr;
+    const ly = cy + Math.sin(tickAngle) * rr;
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(tickAngle + Math.PI / 2);
+    ctx.font = `400 8px ${FONT_MONO}`;
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(((MAX_VAL * i / RINGS)/1000).toFixed(0)+'k', 0, -7);
+    ctx.restore();
+  }
+
+  // ── 2. RADIAL LINES
+  for (let d = 0; d < DAYS; d++) {
+    const angle = (d / DAYS) * Math.PI * 2 - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle)*r, cy + Math.sin(angle)*r);
+    ctx.strokeStyle = "rgba(0,0,0,0.15)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // ── 3. DAY LABELS
+  for (let d = 0; d < DAYS; d++) {
+    const midAngle = ((d + 0.5) / DAYS) * Math.PI * 2 - Math.PI / 2;
+    const lx = cx + Math.cos(midAngle) * r * 1.025;
+    const ly = cy + Math.sin(midAngle) * r * 1.025;
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(midAngle + Math.PI / 2);
+    ctx.font = `500 11px ${FONT_MONO}`;
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(DAY_NAMES[d], 0, 0);
+    ctx.restore();
+  }
+
+  // ── 4. HOUR LABELS
+  for (let d = 0; d < DAYS; d++) {
+    for (let h = 0; h < HOURS; h += 2) {
+      if (h === 0) continue;
+      const idx   = d * HOURS + h;
+      const angle = (idx / TOTAL) * Math.PI * 2 - Math.PI / 2;
+      const lx    = cx + Math.cos(angle) * r * 0.97;
+      const ly    = cy + Math.sin(angle) * r * 0.97;
+      ctx.save();
+      ctx.translate(lx, ly);
+      ctx.rotate(angle + Math.PI / 2);
+      ctx.font = `400 7px ${FONT_MONO}`;
+      ctx.fillStyle = "rgba(0,0,0,0.32)";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const isPM = h >= 12;
+      const h12  = h % 12 === 0 ? 12 : h % 12;
+      ctx.fillText(`${h12}${isPM?"pm":"am"}`, 0, 0);
+      ctx.restore();
+    }
+  }
+
+  // ── 5. MAIN AREA PATH
+  ctx.beginPath();
+  for (let i = 0; i < TOTAL; i++) {
+    const angle = (i / TOTAL) * Math.PI * 2 - Math.PI / 2;
+    const rr    = r * Math.min(rData[i] / MAX_VAL, 1);
+    const x     = cx + Math.cos(angle) * rr;
+    const y     = cy + Math.sin(angle) * rr;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle   = "rgba(0, 114, 178, 0.10)";
+  ctx.fill();
+  ctx.strokeStyle = "#0072B2";
+  ctx.lineWidth   = 1.5;
+  ctx.lineJoin    = "round";
+  ctx.stroke();
+
+  // ── 6. HIGHLIGHT SEGMENT (if hovering)
+  if (highlightIdx >= 0) {
+    const span = 1; // highlight ±1 hour for visibility
+    ctx.beginPath();
+    for (let di = -span; di <= span; di++) {
+      const i2 = (highlightIdx + di + TOTAL) % TOTAL;
+      const angle = (i2 / TOTAL) * Math.PI * 2 - Math.PI / 2;
+      const rr    = r * Math.min(rData[i2] / MAX_VAL, 1);
+      const x     = cx + Math.cos(angle) * rr;
+      const y     = cy + Math.sin(angle) * rr;
+      if (di === -span) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = "#0072B2";
+    ctx.lineWidth   = 3.5;
+    ctx.lineCap = "round";
+    ctx.stroke();
+
+    // Dot at the point
+    const {x, y} = idxToXY(highlightIdx);
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI*2);
+    ctx.fillStyle = "#0072B2";
+    ctx.fill();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Radial line from center to point
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = "rgba(0,114,178,0.12)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  TOOLTIP
+// ─────────────────────────────────────────────
+function showTooltip(idx, mouseX, mouseY) {
+  const tt = document.getElementById('tooltip');
+  const {day, hour} = idxToDayHour(idx);
+  const val = rData[idx] || 0;
+  const ratio = Math.min(val / MAX_VAL, 1);
+
+  document.getElementById('tt-day').textContent  = DAY_NAMES[day];
+  document.getElementById('tt-hour').textContent = formatHour(hour);
+  document.getElementById('tt-val').textContent  = formatCount(val);
+  document.getElementById('tt-bar').style.width  = Math.round(ratio * 120) + 'px';
+  document.getElementById('tt-sub').textContent  = `${Math.round(ratio*100)}% del pico máximo`;
+
+  // Position near cursor
+  const pad = 14;
+  let tx = mouseX + pad, ty = mouseY - 10;
+  const w = tt.offsetWidth || 160;
+  const h = tt.offsetHeight || 90;
+  if (tx + w > window.innerWidth - 10)  tx = mouseX - w - pad;
+  if (ty + h > window.innerHeight - 10) ty = mouseY - h - pad;
+  tt.style.left = tx + 'px';
+  tt.style.top  = ty + 'px';
+  tt.classList.add('visible');
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').classList.remove('visible');
+}
+
+// ─────────────────────────────────────────────
+//  PLAYHEAD DOT
+// ─────────────────────────────────────────────
+function updatePlayhead(idx) {
+  const ph = document.getElementById('playhead');
+  const wrap = document.getElementById('chartWrap');
+  const rect = wrap.getBoundingClientRect();
+
+  getGeometry();
+  const {x,y} = idxToXY(idx);
+  const scaleX = rect.width  / W;
+  const scaleY = rect.height / H;
+
+  ph.style.left = (x * scaleX) + 'px';
+  ph.style.top  = (y * scaleY) + 'px';
+  ph.classList.add('visible');
+}
+
+function hidePlayhead() {
+  document.getElementById('playhead').classList.remove('visible');
+}
+
+// ─────────────────────────────────────────────
+//  PLAYBACK
+// ─────────────────────────────────────────────
+function togglePlay() {
+  if (isPlaying) stopPlay(); else startPlay();
+}
+
+function startPlay() {
+  ensureAudioCtx();
+  isPlaying = true;
+  const btn = document.getElementById('btnPlay');
+  btn.classList.add('playing');
+  document.getElementById('iconPlay').style.display = 'none';
+  document.getElementById('iconStop').style.display = '';
+  document.getElementById('btnLabel').textContent = 'Detener';
+
+  scheduleStep();
+}
+
+function stopPlay() {
+  isPlaying = false;
+  clearTimeout(playTimer);
+  stopCrowdSound();
+  hidePlayhead();
+  render(-1);
+
+  const btn = document.getElementById('btnPlay');
+  btn.classList.remove('playing');
+  document.getElementById('iconPlay').style.display = '';
+  document.getElementById('iconStop').style.display = 'none';
+  document.getElementById('btnLabel').textContent = 'Reproducir semana';
+}
+
+function scheduleStep() {
+  if (!isPlaying) return;
+  playTimer = setTimeout(() => {
+    playIdx = (playIdx + 1) % TOTAL;
+    const val = rData[playIdx];
+    playCrowdSound(val);
+    render(playIdx);
+    updatePlayhead(playIdx);
+    scheduleStep();
+  }, stepMs);
+}
+
+function updateSpeed() {
+  stepMs = parseInt(document.getElementById('speedSelect').value);
+}
+
+// ─────────────────────────────────────────────
+//  MOUSE / TOUCH INTERACTION
+// ─────────────────────────────────────────────
+let hoverTimer = null;
+let lastSoundIdx = -1;
+
+function onMouseMove(e) {
+  const wrap = document.getElementById('chartWrap');
+  const rect = wrap.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+
+  // Map mouse to canvas coordinate space
+  const scaleX = W / canvasRect.width;
+  const scaleY = H / canvasRect.height;
+  const lx = (e.clientX - canvasRect.left) * scaleX;
+  const ly = (e.clientY - canvasRect.top)  * scaleY;
+
+  const idx = xyToIdx(lx, ly);
+
+  if (idx === hoveredIdx) return;
+  hoveredIdx = idx;
+
+  if (idx < 0) {
+    render(-1);
+    hideTooltip();
+    if (!isPlaying) { stopCrowdSound(); updateSoundBars(0); }
+    return;
+  }
+
+  render(idx);
+  showTooltip(idx, e.clientX, e.clientY);
+
+  // Throttle sound to avoid spamming
+  if (idx !== lastSoundIdx) {
+    lastSoundIdx = idx;
+    if (!isPlaying) playCrowdSound(rData[idx]);
+  }
+}
+
+function onMouseLeave() {
+  hoveredIdx = -1;
+  render(-1);
+  hideTooltip();
+  if (!isPlaying) { stopCrowdSound(0.4); updateSoundBars(0); }
+}
+
+function onClick(e) {
+  const canvasRect = canvas.getBoundingClientRect();
+  const scaleX = W / canvasRect.width;
+  const scaleY = H / canvasRect.height;
+  const lx = (e.clientX - canvasRect.left) * scaleX;
+  const ly = (e.clientY - canvasRect.top)  * scaleY;
+  const idx = xyToIdx(lx, ly);
+  if (idx < 0) return;
+
+  ensureAudioCtx();
+  clickedIdx = idx;
+  playCrowdSound(rData[idx]);
+  render(idx);
+
+  const {day, hour} = idxToDayHour(idx);
+  // small pulse: replays sound for 2s then stops if not hovering
+  clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(() => {
+    if (!isPlaying && hoveredIdx < 0) stopCrowdSound(0.5);
+  }, 2000);
+}
+
+// ─────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────
+(async function init() {
+  const container = document.getElementById("chart");
+  canvas = document.createElement("canvas");
+  canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;";
+  container.appendChild(canvas);
+  ctx = canvas.getContext("2d");
+
+  // Bind events on the chartWrap (canvas + overlay)
+  const wrap = document.getElementById("chartWrap");
+  wrap.addEventListener("mousemove",  onMouseMove);
+  wrap.addEventListener("mouseleave", onMouseLeave);
+  wrap.addEventListener("click",      onClick);
+  window.addEventListener("resize",  () => render(hoveredIdx));
 
   try {
-    const rows = await loadCSV(CSV_PATH);
-    const grid = buildGrid(rows);
-    drawPolar("chart", grid);
-  } catch (err) {
-    console.error("Error al cargar el gráfico polar:", err);
-    const el = document.getElementById("chart");
-    if (el) el.innerHTML =
-      '<p style="color:#6b6b64;font-family:DM Mono,monospace;font-size:12px;padding:3rem;text-align:center;">No se pudo cargar bart_week_full.csv</p>';
+    const rows = await loadCSV("bart_week_full.csv");
+    buildGrid(rows);
+    render(-1);
+  } catch(err) {
+    console.error(err);
+    // Fallback: generate synthetic data so interaction still works
+    for (let d = 0; d < DAYS; d++) {
+      for (let h = 0; h < HOURS; h++) {
+        const isWeekend = d >= 5;
+        const peak = isWeekend ? 200000 : 700000;
+        let v = 0;
+        if (h >= 7 && h <= 9)  v = peak * (0.7 + Math.random()*0.3);
+        else if (h >= 16 && h <= 19) v = peak * (0.8 + Math.random()*0.2);
+        else if (h >= 5 && h <= 22) v = peak * (0.1 + Math.random()*0.2);
+        else v = peak * 0.02;
+        gridData[d][h] = Math.round(v);
+        rData[d * HOURS + h] = Math.round(v);
+      }
+    }
+    render(-1);
+    console.warn("Usando datos sintéticos de demostración");
   }
 })();
 </script>
