@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BART — Flujo Semanal de Pasajeros</title>
+  <title>BART — Flujo de Pasajeros</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { 
-        box-sizing: border-box; 
-        margin: 0; 
-        padding: 0; 
+    *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
     }
 
     :root {
@@ -38,9 +38,9 @@
         padding: 1rem 1.5rem 3rem;
     }
 
-    .wrapper { 
-        width: 100%; 
-        max-width: 860px; 
+    .wrapper {
+        width: 100%;
+        max-width: 860px;
     }
 
     .eyebrow {
@@ -74,6 +74,30 @@
         padding-left: 1rem;
         margin-bottom: 1.4rem;
     }
+
+    /* ── View tabs ── */
+    .view-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 1.4rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .view-tab {
+        font-family: 'DM Mono', monospace;
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-mute);
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 8px 16px;
+        cursor: pointer;
+        margin-bottom: -1px;
+        transition: color 0.15s, border-color 0.15s;
+    }
+    .view-tab:hover { color: var(--text-sec); }
+    .view-tab.active { color: var(--c-wd); border-bottom-color: var(--c-wd); }
 
     .divider {
         width: 100%;
@@ -202,7 +226,7 @@
         margin-top: 3px;
     }
 
-    /* ── Playhead indicator (small glow dot on chart) ── */
+    /* ── Playhead indicator ── */
     #playhead {
         position: absolute;
         width: 8px;
@@ -275,17 +299,23 @@
 <div class="wrapper">
 
   <div class="eyebrow">Bay Area Rapid Transit</div>
-  <h1>Flujo semanal de pasajeros BART</h1>
-  <p class="subtitle">
+  <h1 id="mainTitle">Flujo semanal de pasajeros BART</h1>
+  <p class="subtitle" id="mainSubtitle">
     Viajes totales por hora durante una <em>semana promedio</em> del año 2022
   </p>
-  <p class="context">
-    <strong>BART (Bay Area Rapid Transit)</strong> conecta 
-    <em>San Francisco</em> con el <em>East Bay</em> y el <em>sur de la Bahía</em>. 
-    Su uso refleja los <strong>patrones laborales de la industria tecnológica</strong>: 
-    <strong><u>el 82% de los viajes ocurre en días hábiles</u></strong>, 
+  <p class="context" id="mainContext">
+    <strong>BART (Bay Area Rapid Transit)</strong> conecta
+    <em>San Francisco</em> con el <em>East Bay</em> y el <em>sur de la Bahía</em>.
+    Su uso refleja los <strong>patrones laborales de la industria tecnológica</strong>:
+    <strong><u>el 82% de los viajes ocurre en días hábiles</u></strong>,
     muy por sobre el fin de semana <em>(34,6&nbsp;M vs 7,4&nbsp;M)</em>.
   </p>
+
+  <!-- View tabs -->
+  <div class="view-tabs">
+    <button class="view-tab active" id="tabWeek" onclick="switchToWeek()">Vista semanal</button>
+    <button class="view-tab" id="tabMonth" onclick="switchToMonthView()">Vista mensual</button>
+  </div>
 
   <div class="divider"></div>
 
@@ -310,6 +340,22 @@
       <option value="500">2×</option>
     </select>
 
+    <span class="speed-label" id="monthLabel" style="display:none">Mes:</span>
+    <select class="speed-select" id="monthSelect" style="display:none" onchange="onMonthChange()">
+      <option value="1">Enero</option>
+      <option value="2">Febrero</option>
+      <option value="3">Marzo</option>
+      <option value="4">Abril</option>
+      <option value="5">Mayo</option>
+      <option value="6">Junio</option>
+      <option value="7">Julio</option>
+      <option value="8">Agosto</option>
+      <option value="9">Septiembre</option>
+      <option value="10">Octubre</option>
+      <option value="11">Noviembre</option>
+      <option value="12">Diciembre</option>
+    </select>
+
     <div class="sound-indicator" id="soundIndicator">
       <span id="bar1" style="height:4px"></span>
       <span id="bar2" style="height:4px"></span>
@@ -325,7 +371,7 @@
   <div class="chart-wrap" id="chartWrap">
     <div id="chart"></div>
     <div id="playhead"></div>
-    <img src="comentarios.svg" class="overlay-img" />
+    <img src="comentarios.svg" id="overlayImg" class="overlay-img" />
   </div>
 
   <div class="footer">
@@ -347,18 +393,37 @@
 </div>
 
 <script>
-// ─────────────────────────────────────────────
-//  GLOBALS
-// ─────────────────────────────────────────────
-const DAYS  = 7;
-const HOURS = 24;
-const TOTAL = DAYS * HOURS;
-const MAX_VAL = 1000000;
-const DAY_NAMES = ["LUNES","MARTES","MIÉRCOLES","JUEVES","VIERNES","SÁBADO","DOMINGO"];
-const DAY_NAMES_FULL = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
 
-let rData = new Array(TOTAL).fill(0);
+// ─────────────────────────────────────────────
+//  VIEW STATE
+// ─────────────────────────────────────────────
+let monthlyAllData = {};
+let viewMode = 'week';   // 'week' | 'month'
+let currentMonth = 1;
+
+// ─────────────────────────────────────────────
+//  GLOBALS (mutable for view switching)
+// ─────────────────────────────────────────────
+const HOURS = 24;
+let DAYS  = 7;
+let TOTAL = DAYS * HOURS;
+let MAX_VAL = 1000000;
+
+const WEEK_DAY_NAMES      = ["LUNES","MARTES","MIÉRCOLES","JUEVES","VIERNES","SÁBADO","DOMINGO"];
+const WEEK_DAY_NAMES_FULL = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const MONTH_MAX_VAL = 25000;
+
+let DAY_NAMES      = [...WEEK_DAY_NAMES];
+let DAY_NAMES_FULL = [...WEEK_DAY_NAMES_FULL];
+
+let rData    = new Array(TOTAL).fill(0);
 let gridData = Array.from({length:DAYS}, () => new Array(HOURS).fill(0));
+
+// Stored weekly data (restored when switching back)
+let weekRData    = null;
+let weekGridData = null;
+
 
 // Canvas state
 let canvas, ctx, W, H, cx, cy, r;
@@ -392,21 +457,126 @@ async function loadCSV(path) {
   });
 }
 
-function buildGrid(rows) {
+function buildMonthlyData(rows) {
+  rows.forEach(row => {
+    const m = row["month"], wd = row["weekday"], h = row["hour"], v = row["avg_trip_count"];
+    if (!monthlyAllData[m]) {
+      monthlyAllData[m] = Array.from({length:7}, () => new Array(HOURS).fill(0));
+    }
+    monthlyAllData[m][wd][h] = v;
+  });
+}
+
+function buildWeekGrid(rows) {
   rows.forEach(row => {
     const d = row["weekday"], h = row["Hour"], v = row["Trip Count"];
-    if (d >= 0 && d < DAYS && h >= 0 && h < HOURS) gridData[d][h] = v;
+    if (d >= 0 && d < 7 && h >= 0 && h < HOURS) gridData[d][h] = v;
   });
-  for (let d = 0; d < DAYS; d++)
+  for (let d = 0; d < 7; d++)
     for (let h = 0; h < HOURS; h++)
       rData[d * HOURS + h] = gridData[d][h];
+  weekRData    = [...rData];
+  weekGridData = gridData.map(row => [...row]);
+}
+
+
+// ─────────────────────────────────────────────
+//  VIEW SWITCHING
+// ─────────────────────────────────────────────
+function daysInMonth(m) {
+  return new Date(2022, m, 0).getDate();
+}
+
+function switchToWeek() {
+  if (viewMode === 'week') return;
+  if (isPlaying) stopPlay();
+  viewMode = 'week';
+
+  DAYS    = 7;
+  TOTAL   = DAYS * HOURS;
+  MAX_VAL = 1000000;
+  DAY_NAMES      = [...WEEK_DAY_NAMES];
+  DAY_NAMES_FULL = [...WEEK_DAY_NAMES_FULL];
+
+  rData    = weekRData ? [...weekRData] : new Array(TOTAL).fill(0);
+  gridData = weekGridData ? weekGridData.map(r => [...r]) : Array.from({length:DAYS}, () => new Array(HOURS).fill(0));
+
+  document.getElementById('tabWeek').classList.add('active');
+  document.getElementById('tabMonth').classList.remove('active');
+  document.getElementById('monthLabel').style.display = 'none';
+  document.getElementById('monthSelect').style.display = 'none';
+  document.getElementById('btnLabel').textContent = 'Reproducir semana';
+
+  document.getElementById('mainTitle').textContent = 'Flujo semanal de pasajeros BART';
+  document.getElementById('mainSubtitle').innerHTML = 'Viajes totales por hora durante una <em>semana promedio</em> del año 2022';
+  document.getElementById('mainContext').innerHTML = '<strong>BART (Bay Area Rapid Transit)</strong> conecta <em>San Francisco</em> con el <em>East Bay</em> y el <em>sur de la Bahía</em>. Su uso refleja los <strong>patrones laborales de la industria tecnológica</strong>: <strong><u>el 82% de los viajes ocurre en días hábiles</u></strong>, muy por sobre el fin de semana <em>(34,6&nbsp;M vs 7,4&nbsp;M)</em>.';
+
+  const overlay = document.getElementById('overlayImg');
+  if (overlay) overlay.style.display = '';
+
+  hoveredIdx = -1;
+  render(-1);
+}
+
+function switchToMonthView() {
+  if (viewMode === 'month') return;
+  if (isPlaying) stopPlay();
+  viewMode = 'month';
+
+  document.getElementById('tabMonth').classList.add('active');
+  document.getElementById('tabWeek').classList.remove('active');
+  document.getElementById('monthLabel').style.display = '';
+  document.getElementById('monthSelect').style.display = '';
+
+  loadMonthData(currentMonth);
+}
+
+function loadMonthData(m) {
+  currentMonth = m;
+
+  DAYS    = 7;
+  TOTAL   = DAYS * HOURS;
+  MAX_VAL = MONTH_MAX_VAL;
+
+  DAY_NAMES      = [...WEEK_DAY_NAMES];
+  DAY_NAMES_FULL = [...WEEK_DAY_NAMES_FULL];
+
+  rData    = new Array(TOTAL).fill(0);
+  gridData = Array.from({length:7}, () => new Array(HOURS).fill(0));
+
+  if (monthlyAllData[m]) {
+    for (let d = 0; d < 7; d++) {
+      for (let h = 0; h < HOURS; h++) {
+        const v = monthlyAllData[m][d][h] || 0;
+        gridData[d][h] = v;
+        rData[d * HOURS + h] = v;
+      }
+    }
+  }
+
+  document.getElementById('btnLabel').textContent = 'Reproducir mes';
+
+  const monthName = MONTH_NAMES[m - 1];
+  document.getElementById('mainTitle').textContent = `Flujo semanal de pasajeros BART — ${monthName} 2022`;
+  document.getElementById('mainSubtitle').innerHTML = `Viajes promedio por hora durante una <em>semana de ${monthName} 2022</em>`;
+  document.getElementById('mainContext').innerHTML = `El gráfico muestra el <strong>promedio de viajes por día de semana y hora</strong> durante <strong>${monthName} 2022</strong>. Permite comparar cómo varía la demanda entre semanas del mismo mes.`;
+
+  const overlay = document.getElementById('overlayImg');
+  if (overlay) overlay.style.display = 'none';
+
+  hoveredIdx = -1;
+  render(-1);
+}
+
+function onMonthChange() {
+  if (isPlaying) stopPlay();
+  const m = parseInt(document.getElementById('monthSelect').value);
+  loadMonthData(m);
 }
 
 // ─────────────────────────────────────────────
 //  AUDIO ENGINE — 5-track crossfade
 // ─────────────────────────────────────────────
-
-// Track definitions: file, ratio range [min, max], peak gain
 const TRACKS = [
   { file: 'empty.mp3',        min: 0.00, max: 0.05, gain: 0.55 },
   { file: 'light.mp3',        min: 0.05, max: 0.25, gain: 0.60 },
@@ -415,16 +585,15 @@ const TRACKS = [
   { file: 'really_heavy.mp3', min: 0.75, max: 1.00, gain: 0.75 },
 ];
 
-// Runtime state per track
 const trackState = TRACKS.map(() => ({
-  buffer: null,   // decoded AudioBuffer
-  source: null,   // BufferSourceNode (looping)
-  gain:   null,   // GainNode
+  buffer: null,
+  source: null,
+  gain:   null,
   loaded: false,
   loading: false,
 }));
 
-let masterGain = null;  // master output gain
+let masterGain = null;
 
 function ensureAudioCtx() {
   if (!audioCtx) {
@@ -436,7 +605,6 @@ function ensureAudioCtx() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
-// Load a single track buffer (lazy, called on first interaction)
 async function loadTrack(i) {
   if (trackState[i].loaded || trackState[i].loading) return;
   trackState[i].loading = true;
@@ -452,11 +620,10 @@ async function loadTrack(i) {
   trackState[i].loading = false;
 }
 
-// Start a track looping at gain 0 (ready to crossfade in)
 function startTrack(i) {
   const st = trackState[i];
   if (!st.loaded || !st.buffer) return;
-  if (st.source) return; // already running
+  if (st.source) return;
 
   st.gain   = audioCtx.createGain();
   st.gain.gain.value = 0;
@@ -469,7 +636,6 @@ function startTrack(i) {
   st.source.start();
 }
 
-// Stop a track with a short fade
 function stopTrack(i, fadeSec = 0.35) {
   const st = trackState[i];
   if (!st.source) return;
@@ -481,9 +647,8 @@ function stopTrack(i, fadeSec = 0.35) {
   setTimeout(() => { try { src.stop(); } catch(e){} }, (fadeSec + 0.1) * 1000);
 }
 
-// Pick which track index a ratio belongs to
 function trackForRatio(ratio) {
-  if (ratio < 0.005) return -1; // silence
+  if (ratio < 0.005) return -1;
   for (let i = TRACKS.length - 1; i >= 0; i--) {
     if (ratio >= TRACKS[i].min) return i;
   }
@@ -497,11 +662,9 @@ async function playCrowdSound(tripCount) {
   const ratio    = Math.min(tripCount / MAX_VAL, 1);
   const wantIdx  = trackForRatio(ratio);
 
-  // Preload all tracks in background (lazy)
   TRACKS.forEach((_, i) => loadTrack(i));
 
   if (wantIdx === activeTrackIdx) {
-    // Same track — just update gain within the track's range
     if (wantIdx >= 0 && trackState[wantIdx].gain) {
       const { min, max, gain: peakGain } = TRACKS[wantIdx];
       const local = (ratio - min) / (max - min || 1);
@@ -514,13 +677,11 @@ async function playCrowdSound(tripCount) {
     return;
   }
 
-  // Crossfade: fade out old, fade in new
   if (activeTrackIdx >= 0) stopTrack(activeTrackIdx, 0.4);
   activeTrackIdx = wantIdx;
 
   if (wantIdx < 0) { updateSoundBars(0); return; }
 
-  // Wait for buffer if still loading
   if (!trackState[wantIdx].loaded) {
     await loadTrack(wantIdx);
     if (!trackState[wantIdx].loaded) { updateSoundBars(0); return; }
@@ -577,7 +738,6 @@ function getGeometry() {
   r  = Math.min(W, H) / 2 - PAD;
 }
 
-// Convert polar index → canvas XY (at the graph's plotted radius)
 function idxToXY(idx) {
   const angle = (idx / TOTAL) * Math.PI * 2 - Math.PI / 2;
   const rr    = r * Math.min(rData[idx] / MAX_VAL, 1);
@@ -588,12 +748,11 @@ function idxToXY(idx) {
   };
 }
 
-// Given canvas XY, find nearest data index (by angle)
 function xyToIdx(x, y) {
   const dx = x - cx, dy = y - cy;
   const dist = Math.sqrt(dx*dx + dy*dy);
-  if (dist < 5) return -1;   // too close to center
-  if (dist > r * 1.05) return -1;  // outside chart
+  if (dist < 5) return -1;
+  if (dist > r * 1.05) return -1;
 
   let angle = Math.atan2(dy, dx) + Math.PI / 2;
   if (angle < 0) angle += Math.PI * 2;
@@ -731,9 +890,9 @@ function render(highlightIdx = -1) {
   ctx.lineJoin    = "round";
   ctx.stroke();
 
-  // ── 6. HIGHLIGHT SEGMENT (if hovering)
+  // ── 6. HIGHLIGHT SEGMENT
   if (highlightIdx >= 0) {
-    const span = 1; // highlight ±1 hour for visibility
+    const span = 1;
     ctx.beginPath();
     for (let di = -span; di <= span; di++) {
       const i2 = (highlightIdx + di + TOTAL) % TOTAL;
@@ -748,7 +907,6 @@ function render(highlightIdx = -1) {
     ctx.lineCap = "round";
     ctx.stroke();
 
-    // Dot at the point
     const {x, y} = idxToXY(highlightIdx);
     ctx.beginPath();
     ctx.arc(x, y, 5, 0, Math.PI*2);
@@ -758,7 +916,6 @@ function render(highlightIdx = -1) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Radial line from center to point
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(x, y);
@@ -785,7 +942,6 @@ function showTooltip(idx, mouseX, mouseY) {
   document.getElementById('tt-bar').style.width  = Math.round(ratio * 120) + 'px';
   document.getElementById('tt-sub').textContent  = `${Math.round(ratio*100)}% del pico máximo`;
 
-  // Position near cursor
   const pad = 14;
   let tx = mouseX + pad, ty = mouseY - 10;
   const w = tt.offsetWidth || 160;
@@ -853,7 +1009,7 @@ function stopPlay() {
   btn.classList.remove('playing');
   document.getElementById('iconPlay').style.display = '';
   document.getElementById('iconStop').style.display = 'none';
-  document.getElementById('btnLabel').textContent = 'Reproducir semana';
+  document.getElementById('btnLabel').textContent = viewMode === 'week' ? 'Reproducir semana' : 'Reproducir mes';
 }
 
 function scheduleStep() {
@@ -879,11 +1035,8 @@ let hoverTimer = null;
 let lastSoundIdx = -1;
 
 function onMouseMove(e) {
-  const wrap = document.getElementById('chartWrap');
-  const rect = wrap.getBoundingClientRect();
   const canvasRect = canvas.getBoundingClientRect();
 
-  // Map mouse to canvas coordinate space
   const scaleX = W / canvasRect.width;
   const scaleY = H / canvasRect.height;
   const lx = (e.clientX - canvasRect.left) * scaleX;
@@ -904,7 +1057,6 @@ function onMouseMove(e) {
   render(idx);
   showTooltip(idx, e.clientX, e.clientY);
 
-  // Throttle sound to avoid spamming
   if (idx !== lastSoundIdx) {
     lastSoundIdx = idx;
     if (!isPlaying) playCrowdSound(rData[idx]);
@@ -932,8 +1084,6 @@ function onClick(e) {
   playCrowdSound(rData[idx]);
   render(idx);
 
-  const {day, hour} = idxToDayHour(idx);
-  // small pulse: replays sound for 2s then stops if not hovering
   clearTimeout(hoverTimer);
   hoverTimer = setTimeout(() => {
     if (!isPlaying && hoveredIdx < 0) stopCrowdSound(0.5);
@@ -950,21 +1100,23 @@ function onClick(e) {
   container.appendChild(canvas);
   ctx = canvas.getContext("2d");
 
-  // Bind events on the chartWrap (canvas + overlay)
   const wrap = document.getElementById("chartWrap");
   wrap.addEventListener("mousemove",  onMouseMove);
   wrap.addEventListener("mouseleave", onMouseLeave);
   wrap.addEventListener("click",      onClick);
   window.addEventListener("resize",  () => render(hoveredIdx));
 
+  // Load both CSVs in parallel
+  loadCSV("bart_monthly_weekly_2022.csv")
+    .then(rows => buildMonthlyData(rows))
+    .catch(err => console.warn("No se pudo cargar datos mensuales:", err.message));
+
   try {
     const rows = await loadCSV("bart_week_full.csv");
-    buildGrid(rows);
-    render(-1);
+    buildWeekGrid(rows);
   } catch(err) {
     console.error(err);
-    // Fallback: generate synthetic data so interaction still works
-    for (let d = 0; d < DAYS; d++) {
+    for (let d = 0; d < 7; d++) {
       for (let h = 0; h < HOURS; h++) {
         const isWeekend = d >= 5;
         const peak = isWeekend ? 200000 : 700000;
@@ -977,9 +1129,12 @@ function onClick(e) {
         rData[d * HOURS + h] = Math.round(v);
       }
     }
-    render(-1);
+    weekRData    = [...rData];
+    weekGridData = gridData.map(r => [...r]);
     console.warn("Usando datos sintéticos de demostración");
   }
+
+  render(-1);
 })();
 </script>
 </body>
