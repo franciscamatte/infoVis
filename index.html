@@ -392,6 +392,9 @@
   <div class="tt-sub" id="tt-sub"></div>
 </div>
 
+<script src="https://app.protobject.com/framework/p.js"></script>
+<script src="config.js"></script>
+
 <script>
 
 // ─────────────────────────────────────────────
@@ -1136,6 +1139,28 @@ function onClick(e) {
 
   render(-1);
 })();
+
+let ultimoIdx = -1;
+
+Protobject.Core.onReceived((datos) => {
+
+    const angulo =
+      ((datos.angulo % 360) + 360) % 360;
+
+    const idx =
+      Math.floor((angulo / 360) * TOTAL);
+
+    if (idx === ultimoIdx) return;
+
+    ultimoIdx = idx;
+
+    render(idx);
+
+    playCrowdSound(rData[idx]);
+
+});
 </script>
+
+
 </body>
 </html>

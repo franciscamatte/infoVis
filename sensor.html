@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sensor</title>
+
+<style>
+body{
+    font-family:sans-serif;
+    text-align:center;
+    padding:40px;
+}
+
+#estado{
+    font-size:24px;
+    margin-top:20px;
+}
+
+#angulo{
+    font-size:48px;
+    font-weight:bold;
+    margin-top:20px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>Sensor conectado</h1>
+
+<div id="estado">Esperando movimiento...</div>
+<div id="angulo">0°</div>
+
+<script src="https://app.protobject.com/framework/p.js"></script>
+
+<script>
+
+let vueltas = 0;
+let ultimoAngulo = null;
+
+const estadoEl = document.getElementById("estado");
+const anguloEl = document.getElementById("angulo");
+
+function iniciarSensor() {
+
+    window.addEventListener("deviceorientation", (event) => {
+
+        if (event.alpha == null) {
+            estadoEl.textContent =
+              "No se pudo acceder al sensor";
+            return;
+        }
+
+        const angulo = event.alpha;
+
+        anguloEl.textContent =
+          Math.round(angulo) + "°";
+
+        estadoEl.textContent =
+          "Enviando datos...";
+
+        if (ultimoAngulo !== null) {
+
+            if (ultimoAngulo > 300 && angulo < 60) {
+                vueltas++;
+            }
+
+            if (ultimoAngulo < 60 && angulo > 300) {
+                vueltas--;
+            }
+        }
+
+        ultimoAngulo = angulo;
+
+        try {
+
+            Protobject.Core.send({
+                angulo: angulo,
+                vueltas: vueltas
+            });
+
+        } catch(e) {
+            console.error(e);
+        }
+
+    });
+
+}
+
+if (
+    typeof DeviceOrientationEvent !== "undefined" &&
+    typeof DeviceOrientationEvent.requestPermission === "function"
+) {
+
+    const btn = document.createElement("button");
+
+    btn.textContent =
+      "Activar sensores";
+
+    btn.style.fontSize = "20px";
+    btn.style.padding = "12px 24px";
+
+    document.body.appendChild(btn);
+
+    btn.onclick = async () => {
+
+        try {
+
+            const permiso =
+              await DeviceOrientationEvent.requestPermission();
+
+            if (permiso === "granted") {
+
+                btn.remove();
+
+                estadoEl.textContent =
+                  "Sensores activados";
+
+                iniciarSensor();
+            }
+
+        } catch(err) {
+
+            console.error(err);
+
+            estadoEl.textContent =
+              "Error al pedir permisos";
+        }
+    };
+
+} else {
+
+    iniciarSensor();
+
+}
+
+</script>
+
+</body>
+</html>
