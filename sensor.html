@@ -75,6 +75,8 @@ function iniciarSensor() {
 
         try {
 
+            console.log("ENVIANDO", angulo, vueltas);
+
             Protobject.Core.send({
                 angulo: angulo,
                 vueltas: vueltas
