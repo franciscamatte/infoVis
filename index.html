@@ -1142,21 +1142,36 @@ function onClick(e) {
 
 let ultimoIdx = -1;
 
+function showFixedTooltip(idx) {
+  const tt = document.getElementById('tooltip');
+  const {day, hour} = idxToDayHour(idx);
+  const val = rData[idx] || 0;
+  const ratio = Math.min(val / MAX_VAL, 1);
+  document.getElementById('tt-day').textContent  = DAY_NAMES[day];
+  document.getElementById('tt-hour').textContent = formatHour(hour);
+  document.getElementById('tt-val').textContent  = formatCount(val);
+  document.getElementById('tt-bar').style.width  = Math.round(ratio * 120) + 'px';
+  document.getElementById('tt-sub').textContent  = `${Math.round(ratio*100)}% del pico máximo`;
+  tt.style.left = '20px'; tt.style.top = '20px';
+  tt.classList.add('visible');
+}
+
 Protobject.Core.onReceived((datos) => {
 
-    const angulo =
-      ((datos.angulo % 360) + 360) % 360;
+  const angulo = ((datos % 360) + 360) % 360;
 
-    const idx =
-      Math.floor((angulo / 360) * TOTAL);
+  const idx = Math.floor((angulo / 360) * TOTAL);
 
-    if (idx === ultimoIdx) return;
+  if (idx === ultimoIdx) return;
 
-    ultimoIdx = idx;
+  ultimoIdx = idx;
 
-    render(idx);
-
-    playCrowdSound(rData[idx]);
+  if (isPlaying) stopPlay();
+  hoveredIdx = idx;
+  render(idx);
+  showFixedTooltip(idx);
+  updatePlayhead(idx);
+  playCrowdSound(rData[idx]);
 
 });
 </script>

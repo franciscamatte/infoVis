@@ -1,15 +1,4 @@
-Protobject.setProduction(true);
-
 Protobject.initialize([
-  {
-    name: "Pantalla",
-    page: "index.html",
-    main: true,
-    debug: "master",
-  },
-  {
-    name: "Sensor",
-    page: "sensor.html",
-    debug: "local",
-  }
+  { name: "Display", page: "index.html", main: true },
+  { name: "Control", page: "control.html" }
 ]);
