@@ -25,6 +25,7 @@
 
   <script>
     let smoothed = null;
+    let totalRotation = 0;
 
     function normalize(a) { a = a % 360; return a < 0 ? a + 360 : a; }
 
@@ -32,16 +33,18 @@
       let heading = event.webkitCompassHeading;
       if (heading === undefined || heading === null) heading = 360 - event.alpha;
 
-      if (smoothed === null) smoothed = heading;
-      else {
+      if (smoothed === null) {
+        smoothed = heading;
+      } else {
         let diff = heading - smoothed;
         if (diff > 180) diff -= 360;
         if (diff < -180) diff += 360;
         smoothed = normalize(smoothed + diff * 0.25);
+        totalRotation += diff * 0.25; // se acumula sin límite, puede crecer o ser negativo
       }
 
-      document.getElementById('angle').textContent = Math.round(smoothed) + '°';
-      Protobject.Core.send(smoothed).to("index.html");
+      document.getElementById('angle').textContent = Math.round(totalRotation) + '°';
+      Protobject.Core.send(totalRotation).to("index.html");
     }
 
     document.getElementById('startBtn').addEventListener('click', async () => {

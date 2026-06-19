@@ -22,6 +22,25 @@
         --c-wd:     #0072B2;
     }
 
+    body {
+        transition: background 0.5s ease, color 0.5s ease;
+    }
+
+    body.dark-mode {
+        --bg:       #15151a;
+        --surface:  #1f1f24;
+        --border:   #33333a;
+        --text-pri: #e8e8e6;
+        --text-sec: #9a9a96;
+        --text-mute:#5c5c58;
+        --c-wd:     #4fa8e0;
+    }
+
+    body.dark-mode #tooltip {
+        background: #1f1f24;
+        color: var(--text-pri);
+    }
+
     html, body {
         background: var(--bg);
         color: var(--text-pri);
@@ -441,6 +460,7 @@ let isPlaying  = false;
 let playIdx    = 0;
 let playTimer  = null;
 let stepMs     = 750;
+let isDarkMode = false;
 
 // Audio
 let audioCtx = null;
@@ -515,7 +535,10 @@ function switchToWeek() {
   document.getElementById('mainContext').innerHTML = '<strong>BART (Bay Area Rapid Transit)</strong> conecta <em>San Francisco</em> con el <em>East Bay</em> y el <em>sur de la Bahía</em>. Su uso refleja los <strong>patrones laborales de la industria tecnológica</strong>: <strong><u>el 82% de los viajes ocurre en días hábiles</u></strong>, muy por sobre el fin de semana <em>(34,6&nbsp;M vs 7,4&nbsp;M)</em>.';
 
   const overlay = document.getElementById('overlayImg');
-  if (overlay) overlay.style.display = '';
+  if (overlay) {
+    overlay.style.display = '';
+    overlay.src = isDarkMode ? 'comentarios-dark.svg' : 'comentarios.svg';
+  }
 
   hoveredIdx = -1;
   render(-1);
@@ -776,6 +799,20 @@ function formatHour(h) {
   return `${h12}:00 ${isPM?'PM':'AM'} – ${n12}:00 ${np?'PM':'AM'}`;
 }
 
+function setNightMode(idx) {
+  if (idx < 0) return;
+  const { hour } = idxToDayHour(idx);
+  const night = (hour >= 19 || hour < 6); // 8pm–6am = "noche"
+  if (night === isDarkMode) return;
+  isDarkMode = night;
+  document.body.classList.toggle('dark-mode', isDarkMode);
+
+  const overlay = document.getElementById('overlayImg');
+  if (overlay && overlay.style.display !== 'none') {
+    overlay.src = isDarkMode ? 'comentarios-dark.svg' : 'comentarios.svg';
+  }
+}
+
 function formatCount(v) {
   if (v >= 1000) return (v/1000).toFixed(1).replace(/\.0$/,'') + 'k viajes';
   return v + ' viajes';
@@ -784,6 +821,32 @@ function formatCount(v) {
 // ─────────────────────────────────────────────
 //  DRAW
 // ─────────────────────────────────────────────
+function getPalette() {
+  return isDarkMode ? {
+    ringMain:   "rgba(255,255,255,0.18)",
+    ringMinor:  "rgba(255,255,255,0.08)",
+    tick:       "rgba(255,255,255,0.45)",
+    ringLabel:  "rgba(255,255,255,0.55)",
+    radial:     "rgba(255,255,255,0.18)",
+    dayLabel:   "rgba(255,255,255,0.75)",
+    hourLabel:  "rgba(255,255,255,0.38)",
+    areaFill:   "rgba(79,168,224,0.16)",
+    areaStroke: "#4fa8e0",
+    dashLine:   "rgba(79,168,224,0.18)"
+  } : {
+    ringMain:   "rgba(0,0,0,0.13)",
+    ringMinor:  "rgba(0,0,0,0.06)",
+    tick:       "rgba(0,0,0,0.35)",
+    ringLabel:  "rgba(0,0,0,0.5)",
+    radial:     "rgba(0,0,0,0.15)",
+    dayLabel:   "rgba(0,0,0,0.7)",
+    hourLabel:  "rgba(0,0,0,0.32)",
+    areaFill:   "rgba(0,114,178,0.10)",
+    areaStroke: "#0072B2",
+    dashLine:   "rgba(0,114,178,0.12)"
+  };
+}
+
 function render(highlightIdx = -1) {
   if (!canvas || !ctx) return;
   getGeometry();
@@ -792,12 +855,14 @@ function render(highlightIdx = -1) {
   canvas.height = H * devicePixelRatio;
   ctx.scale(devicePixelRatio, devicePixelRatio);
 
+  const pal = getPalette();
+
   // ── 1. RINGS
   for (let i = 1; i <= RINGS; i++) {
     const rr = r * (i / RINGS);
     ctx.beginPath();
     ctx.arc(cx, cy, rr, 0, Math.PI * 2);
-    ctx.strokeStyle = i === RINGS ? "rgba(0,0,0,0.13)" : "rgba(0,0,0,0.06)";
+    ctx.strokeStyle = i === RINGS ? pal.ringMain : pal.ringMinor;
     ctx.lineWidth = i === RINGS ? 1 : 0.7;
     ctx.stroke();
 
@@ -810,7 +875,7 @@ function render(highlightIdx = -1) {
     ctx.beginPath();
     ctx.moveTo(tx - perpX*tickLen/2, ty - perpY*tickLen/2);
     ctx.lineTo(tx + perpX*tickLen/2, ty + perpY*tickLen/2);
-    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.strokeStyle = pal.tick;
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
@@ -820,7 +885,7 @@ function render(highlightIdx = -1) {
     ctx.translate(lx, ly);
     ctx.rotate(tickAngle + Math.PI / 2);
     ctx.font = `400 8px ${FONT_MONO}`;
-    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillStyle = pal.ringLabel;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(((MAX_VAL * i / RINGS)/1000).toFixed(0)+'k', 0, -7);
@@ -833,7 +898,7 @@ function render(highlightIdx = -1) {
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + Math.cos(angle)*r, cy + Math.sin(angle)*r);
-    ctx.strokeStyle = "rgba(0,0,0,0.15)";
+    ctx.strokeStyle = pal.radial;
     ctx.lineWidth = 1;
     ctx.stroke();
   }
@@ -847,7 +912,7 @@ function render(highlightIdx = -1) {
     ctx.translate(lx, ly);
     ctx.rotate(midAngle + Math.PI / 2);
     ctx.font = `500 11px ${FONT_MONO}`;
-    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.fillStyle = pal.dayLabel;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(DAY_NAMES[d], 0, 0);
@@ -866,7 +931,7 @@ function render(highlightIdx = -1) {
       ctx.translate(lx, ly);
       ctx.rotate(angle + Math.PI / 2);
       ctx.font = `400 7px ${FONT_MONO}`;
-      ctx.fillStyle = "rgba(0,0,0,0.32)";
+      ctx.fillStyle = pal.hourLabel;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       const isPM = h >= 12;
@@ -886,9 +951,9 @@ function render(highlightIdx = -1) {
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   }
   ctx.closePath();
-  ctx.fillStyle   = "rgba(0, 114, 178, 0.10)";
+  ctx.fillStyle   = pal.areaFill;
   ctx.fill();
-  ctx.strokeStyle = "#0072B2";
+  ctx.strokeStyle = pal.areaStroke;
   ctx.lineWidth   = 1.5;
   ctx.lineJoin    = "round";
   ctx.stroke();
@@ -905,7 +970,7 @@ function render(highlightIdx = -1) {
       const y     = cy + Math.sin(angle) * rr;
       if (di === -span) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = "#0072B2";
+    ctx.strokeStyle = pal.areaStroke;
     ctx.lineWidth   = 3.5;
     ctx.lineCap = "round";
     ctx.stroke();
@@ -913,16 +978,16 @@ function render(highlightIdx = -1) {
     const {x, y} = idxToXY(highlightIdx);
     ctx.beginPath();
     ctx.arc(x, y, 5, 0, Math.PI*2);
-    ctx.fillStyle = "#0072B2";
+    ctx.fillStyle = pal.areaStroke;
     ctx.fill();
-    ctx.strokeStyle = "#fff";
+    ctx.strokeStyle = isDarkMode ? "#15151a" : "#fff";
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(x, y);
-    ctx.strokeStyle = "rgba(0,114,178,0.12)";
+    ctx.strokeStyle = pal.dashLine;
     ctx.lineWidth = 1;
     ctx.setLineDash([3,4]);
     ctx.stroke();
@@ -1021,6 +1086,7 @@ function scheduleStep() {
     playIdx = (playIdx + 1) % TOTAL;
     const val = rData[playIdx];
     playCrowdSound(val);
+    setNightMode(playIdx);
     render(playIdx);
     updatePlayhead(playIdx);
     scheduleStep();
@@ -1057,6 +1123,7 @@ function onMouseMove(e) {
     return;
   }
 
+  setNightMode(idx);
   render(idx);
   showTooltip(idx, e.clientX, e.clientY);
 
@@ -1085,6 +1152,7 @@ function onClick(e) {
   ensureAudioCtx();
   clickedIdx = idx;
   playCrowdSound(rData[idx]);
+  setNightMode(idx);
   render(idx);
 
   clearTimeout(hoverTimer);
@@ -1140,8 +1208,6 @@ function onClick(e) {
   render(-1);
 })();
 
-let ultimoIdx = -1;
-
 function showFixedTooltip(idx) {
   const tt = document.getElementById('tooltip');
   const {day, hour} = idxToDayHour(idx);
@@ -1156,11 +1222,13 @@ function showFixedTooltip(idx) {
   tt.classList.add('visible');
 }
 
+let ultimoIdx = -1;
+const DEGREES_PER_HOUR = 360 / 12;
+
 Protobject.Core.onReceived((datos) => {
 
-  const angulo = ((datos % 360) + 360) % 360;
-
-  const idx = Math.floor((angulo / 360) * TOTAL);
+  let idx = Math.floor(datos / DEGREES_PER_HOUR);
+  idx = ((idx % TOTAL) + TOTAL) % TOTAL; // envuelve recién aquí, sobre las 168 horas totales
 
   if (idx === ultimoIdx) return;
 
@@ -1168,6 +1236,7 @@ Protobject.Core.onReceived((datos) => {
 
   if (isPlaying) stopPlay();
   hoveredIdx = idx;
+  setNightMode(idx);
   render(idx);
   showFixedTooltip(idx);
   updatePlayhead(idx);
